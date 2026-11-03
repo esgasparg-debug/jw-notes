@@ -32,8 +32,11 @@ interface JwLibraryAppPlugin {
    * restore it. `via` tells whether JW Library took it directly or the user had to pick an app.
    */
   restore(options: { uri: string }): Promise<{ via: 'jwlibrary' | 'chooser' }>;
-  /** Whether the accessibility robot (JwLibraryRobot) is turned on. */
-  robotStatus(): Promise<{ enabled: boolean }>;
+  /**
+   * Whether the accessibility robot (JwLibraryRobot) is turned on in Settings, and whether it
+   * actually runs (Xiaomi leaves it stopped after an app update until it is turned off and on).
+   */
+  robotStatus(): Promise<{ enabled: boolean; running: boolean }>;
   /** Opens Settings › Accessibility, where only the user can turn the robot on. */
   openRobotSettings(): Promise<void>;
   /** The robot opens JW Library, makes a backup and shares it back to JW Notes (arrives via SharedBackup). */

@@ -66,6 +66,14 @@ public class JwLibraryRobot extends AccessibilityService {
      * not from the running service: right after the app starts (e.g. from a notification) Android
      * may not have connected it yet, and a mission started now is picked up once it does.
      */
+    /**
+     * True when the service is actually connected. It can be on in Settings and still not run:
+     * some systems (Xiaomi) leave it "crashed" after the app is updated until it is turned off and on.
+     */
+    static boolean isRunning() {
+        return instance != null;
+    }
+
     static boolean isEnabled(Context context) {
         if (instance != null) return true;
         String enabled = Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);

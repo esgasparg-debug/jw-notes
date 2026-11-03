@@ -44,11 +44,12 @@ public class JwLibraryAppPlugin extends Plugin {
         call.resolve();
     }
 
-    /** Whether the robot (Settings › Accessibility › Editor de Notas) is on. */
+    /** Whether the robot (Settings › Accessibility › Editor de Notas) is on, and whether it actually runs. */
     @PluginMethod
     public void robotStatus(PluginCall call) {
         JSObject ret = new JSObject();
         ret.put("enabled", JwLibraryRobot.isEnabled(getContext()));
+        ret.put("running", JwLibraryRobot.isRunning());
         call.resolve(ret);
     }
 
@@ -65,8 +66,12 @@ public class JwLibraryAppPlugin extends Plugin {
      */
     @PluginMethod
     public void backupAutomatically(PluginCall call) {
-        if (!JwLibraryRobot.isEnabled(getContext())) {
-            call.reject("Ative o Editor de Notas em Configurações › Acessibilidade.");
+        if (!JwLibraryRobot.isRunning()) {
+            call.reject(
+                JwLibraryRobot.isEnabled(getContext())
+                    ? "O Android parou o robô. Em Acessibilidade, desative e ative de novo o Editor de Notas."
+                    : "Ative o Editor de Notas em Configurações › Acessibilidade."
+            );
             return;
         }
         Intent launch = getContext().getPackageManager().getLaunchIntentForPackage(JW_LIBRARY);
@@ -99,7 +104,7 @@ public class JwLibraryAppPlugin extends Plugin {
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         JSObject ret = new JSObject();
         // With the robot on, JW Library's "restore?" question is confirmed for the user.
-        if (JwLibraryRobot.isEnabled(getContext())) JwLibraryRobot.start(JwLibraryRobot.Mission.RESTORE);
+        if (JwLibraryRobot.isRunning()) JwLibraryRobot.start(JwLibraryRobot.Mission.RESTORE);
         try {
             getActivity().startActivity(new Intent(view).setPackage(JW_LIBRARY));
             ret.put("via", "jwlibrary");

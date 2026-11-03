@@ -6,6 +6,8 @@ import { SyncService } from './sync.service';
 
 /** A backup sent longer ago than this may miss notes made since: it is made again before an update. */
 const FRESH_BACKUP_MS = 15 * 60_000;
+/** Checks (every 500 ms) for a robot that is on but not connected yet, before calling it stopped. */
+const ROBOT_START_CHECKS = 6;
 
 /**
  * The one "Sincronizar" button: each press does the next step of the round for this device
@@ -19,8 +21,10 @@ export class SyncFlow {
   private readonly dialog = inject(DialogService);
   private readonly notify = inject(NotificationService);
   private readonly platform = inject(PlatformService).platform;
-  /** Android: whether the robot that taps through JW Library is on (null until checked). */
+  /** Android: whether the robot that taps through JW Library runs (null until checked). */
   private readonly robot = signal<boolean | null>(null);
+  /** Android: the robot is on in Settings but the system stopped it; only turning it off and on helps. */
+  private readonly robotStopped = signal(false);
   /** The situation auto() last acted on (or the user did, with the button), so it is not repeated. */
   private lastAuto = '';
   private updating = false;
@@ -39,6 +43,7 @@ export class SyncFlow {
       case 'update':
         return 'Os aparelhos foram sincronizados. Toque para atualizar o JW Library.';
       case 'send':
+        if (this.robotStopped()) return 'O Android parou o robô. Toque para religá-lo.';
         if (from) return `${from} enviou um backup. Toque para enviar o deste aparelho.`;
         return this.platform === 'android' && this.robot() === false
           ? 'Toque, crie o backup no JW Library e compartilhe com o Editor de Notas.'
@@ -121,11 +126,19 @@ export class SyncFlow {
     }
   }
 
-  /** Re-reads whether the robot is on (it is turned on in system settings, outside the app). */
+  /** Re-reads whether the robot runs (it is turned on in system settings, outside the app). */
   async checkRobot(): Promise<void> {
     if (this.platform !== 'android') return;
     const { JwLibraryApp } = await import('../platform/android-plugins');
-    this.robot.set((await JwLibraryApp.robotStatus().catch(() => ({ enabled: false }))).enabled);
+    const status = () => JwLibraryApp.robotStatus().catch(() => ({ enabled: false, running: false }));
+    let s = await status();
+    // Right after the app starts, Android may still be connecting it.
+    for (let i = 0; s.enabled && !s.running && i < ROBOT_START_CHECKS; i++) {
+      await new Promise((r) => setTimeout(r, 500));
+      s = await status();
+    }
+    this.robot.set(s.running);
+    this.robotStopped.set(s.enabled && !s.running);
   }
 
   /**
@@ -136,6 +149,18 @@ export class SyncFlow {
   private async robotReady(): Promise<boolean> {
     await this.checkRobot();
     if (this.robot()) return true;
+    const { JwLibraryApp } = await import('../platform/android-plugins');
+    if (this.robotStopped()) {
+      const again = await this.dialog.confirm({
+        title: 'Religar o robô',
+        message:
+          'O Android parou o robô do Editor de Notas (acontece quando o app é atualizado). Em Acessibilidade › Apps instalados › "Editor de Notas: sincronizar sozinho", desative e ative de novo.',
+        confirmLabel: 'Abrir Acessibilidade',
+      });
+      if (!again) return true;
+      await JwLibraryApp.openRobotSettings();
+      return false;
+    }
     const ok = await this.dialog.confirm({
       title: 'Sincronizar sozinho',
       message:
@@ -143,7 +168,6 @@ export class SyncFlow {
       confirmLabel: 'Ativar',
     });
     if (!ok) return true;
-    const { JwLibraryApp } = await import('../platform/android-plugins');
     await JwLibraryApp.openRobotSettings();
     return false;
   }

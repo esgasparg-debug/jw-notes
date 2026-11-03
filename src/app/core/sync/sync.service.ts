@@ -188,7 +188,7 @@ export class SyncService {
       this.mergeOnReceive = mergeNow;
       await this.run('loading', 'Fazendo o backup no JW Library…', async () => {
         const { JwLibraryApp } = await import('../platform/android-plugins');
-        if ((await JwLibraryApp.robotStatus()).enabled) await JwLibraryApp.backupAutomatically();
+        if ((await JwLibraryApp.robotStatus()).running) await JwLibraryApp.backupAutomatically();
         else await JwLibraryApp.open();
       });
       return null;
