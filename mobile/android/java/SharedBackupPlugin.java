@@ -37,7 +37,7 @@ public class SharedBackupPlugin extends Plugin {
         Uri uri = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri.class);
         if (uri == null) return false;
         // The robot's backup mission ends here, whoever tapped the share target.
-        JwLibraryRobot.finish();
+        JwLibraryRobot.finish(getContext());
         new Thread(() -> {
             JSObject event = new JSObject();
             try (InputStream in = getContext().getContentResolver().openInputStream(uri)) {

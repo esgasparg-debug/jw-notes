@@ -47,11 +47,16 @@ if (!manifest.includes('<queries>')) {
   manifest = manifest.slice(0, appStart) + queries + manifest.slice(appStart);
 }
 
-// 4. The accessibility service that taps through JW Library (JwLibraryRobot) and its resources.
-if (!manifest.includes('.JwLibraryRobot')) {
-  const appEnd = manifest.lastIndexOf('    </application>');
-  manifest = `${manifest.slice(0, appEnd)}${fs.readFileSync(path.join(SOURCES, 'robot-service.xml'), 'utf8')}${manifest.slice(appEnd)}`;
+// 4. The accessibility service that taps through JW Library (JwLibraryRobot) and its resources;
+// an earlier copy is replaced, so changes to robot-service.xml reach existing projects.
+const ROBOT_START = '        <!-- jw-notes: robot';
+const robotStart = manifest.indexOf(ROBOT_START);
+if (robotStart >= 0) {
+  const robotEnd = manifest.indexOf('</service>', robotStart) + '</service>'.length;
+  manifest = manifest.slice(0, robotStart) + manifest.slice(manifest.indexOf('\n', robotEnd) + 1);
 }
+const appEnd = manifest.lastIndexOf('    </application>');
+manifest = `${manifest.slice(0, appEnd)}${fs.readFileSync(path.join(SOURCES, 'robot-service.xml'), 'utf8')}${manifest.slice(appEnd)}`;
 fs.writeFileSync(manifestPath, manifest);
 for (const dir of fs.readdirSync(path.join(SOURCES, 'res'))) {
   const target = path.join(ANDROID, 'app', 'src', 'main', 'res', dir);

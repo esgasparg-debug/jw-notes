@@ -1,9 +1,13 @@
 package org.example.jwnotes;
 
 import android.accessibilityservice.AccessibilityService;
+import android.accessibilityservice.AccessibilityServiceInfo;
 import android.accessibilityservice.GestureDescription;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.Path;
 import android.graphics.Rect;
 import android.os.Handler;
@@ -12,8 +16,10 @@ import android.os.SystemClock;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
+import androidx.core.content.ContextCompat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -50,7 +56,11 @@ public class JwLibraryRobot extends AccessibilityService {
     private static final long BACK_GRACE_MS = 4_000;
     private static final int MAX_SCROLLS = 10;
 
-    private static volatile JwLibraryRobot instance;
+    /** Missions come from the app's process: the robot runs in its own (":robot", see robot-service.xml). */
+    private static final String ACTION_MISSION = "org.example.jwnotes.ROBOT_MISSION";
+    private static final String EXTRA_MISSION = "mission";
+
+    // State of the robot's own process.
     private static volatile Mission mission = Mission.NONE;
     private static volatile Stage stage = Stage.OPEN_MENU;
     private static volatile long deadline;
@@ -60,22 +70,19 @@ public class JwLibraryRobot extends AccessibilityService {
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable step = this::step;
+    private boolean listening;
+    private final BroadcastReceiver missions = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String name = intent.getStringExtra(EXTRA_MISSION);
+            Mission m = name == null ? Mission.NONE : Mission.valueOf(name);
+            if (m == Mission.NONE) finishMission();
+            else startMission(m);
+        }
+    };
 
-    /**
-     * True when the user turned the robot on in Settings › Accessibility. Read from the setting,
-     * not from the running service: right after the app starts (e.g. from a notification) Android
-     * may not have connected it yet, and a mission started now is picked up once it does.
-     */
-    /**
-     * True when the service is actually connected. It can be on in Settings and still not run:
-     * some systems (Xiaomi) leave it "crashed" after the app is updated until it is turned off and on.
-     */
-    static boolean isRunning() {
-        return instance != null;
-    }
-
+    /** True when the user turned the robot on in Settings › Accessibility (it may still not run). */
     static boolean isEnabled(Context context) {
-        if (instance != null) return true;
         String enabled = Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
         if (enabled == null) return false;
         ComponentName me = new ComponentName(context, JwLibraryRobot.class);
@@ -85,7 +92,30 @@ public class JwLibraryRobot extends AccessibilityService {
         return false;
     }
 
-    static void start(Mission m) {
+    /**
+     * True when Android actually runs the service. It can be on in Settings and still not run:
+     * Xiaomi leaves it "crashed" after the app is updated until it is turned off and on.
+     */
+    static boolean isRunning(Context context) {
+        AccessibilityManager manager = (AccessibilityManager) context.getSystemService(Context.ACCESSIBILITY_SERVICE);
+        ComponentName me = new ComponentName(context, JwLibraryRobot.class);
+        for (AccessibilityServiceInfo info : manager.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)) {
+            if (me.equals(ComponentName.unflattenFromString(info.getId()))) return true;
+        }
+        return false;
+    }
+
+    /** Called from the app's process. */
+    static void start(Context context, Mission m) {
+        context.sendBroadcast(new Intent(ACTION_MISSION).setPackage(context.getPackageName()).putExtra(EXTRA_MISSION, m.name()));
+    }
+
+    /** Called from the app's process. */
+    static void finish(Context context) {
+        start(context, Mission.NONE);
+    }
+
+    private static void startMission(Mission m) {
         mission = m;
         stage = m == Mission.RESTORE ? Stage.WAIT_CONFIRM : Stage.OPEN_MENU;
         started = SystemClock.uptimeMillis();
@@ -95,20 +125,22 @@ public class JwLibraryRobot extends AccessibilityService {
         Log.i(TAG, "robô: missão " + m);
     }
 
-    static void finish() {
+    private static void finishMission() {
         if (mission != Mission.NONE) Log.i(TAG, "robô: fim da missão " + mission);
         mission = Mission.NONE;
     }
 
     @Override
     protected void onServiceConnected() {
-        instance = this;
+        ContextCompat.registerReceiver(this, missions, new IntentFilter(ACTION_MISSION), ContextCompat.RECEIVER_NOT_EXPORTED);
+        listening = true;
     }
 
     @Override
-    public boolean onUnbind(android.content.Intent intent) {
-        instance = null;
-        return super.onUnbind(intent);
+    public void onDestroy() {
+        if (listening) unregisterReceiver(missions);
+        listening = false;
+        super.onDestroy();
     }
 
     @Override
@@ -126,7 +158,7 @@ public class JwLibraryRobot extends AccessibilityService {
         if (mission == Mission.NONE) return;
         if (SystemClock.uptimeMillis() > deadline) {
             Log.w(TAG, "robô: tempo esgotado em " + stage);
-            finish();
+            finishMission();
             return;
         }
         List<AccessibilityNodeInfo> roots = roots();
@@ -141,7 +173,7 @@ public class JwLibraryRobot extends AccessibilityService {
             for (String label : SHARE_TARGETS) {
                 if (click(findText(sheets, label, false))) {
                     // JW Notes takes it from here (SharedBackupPlugin).
-                    finish();
+                    finishMission();
                     return;
                 }
             }
@@ -178,7 +210,7 @@ public class JwLibraryRobot extends AccessibilityService {
         AccessibilityNodeInfo positive = findFullId(roots, "android:id/button1");
         if (positive == null) positive = findFullId(roots, JW_LIBRARY + ":id/button1");
         if (positive != null) Log.i(TAG, "robô: diálogo de restauração: " + texts(getRootInActiveWindow()));
-        if (click(positive)) finish();
+        if (click(positive)) finishMission();
     }
 
     /** The visible texts under `node`, for the log. */

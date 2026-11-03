@@ -1,6 +1,8 @@
-        <!-- jw-notes: robot that taps through JW Library (Settings › Accessibility) -->
+        <!-- jw-notes: robot that taps through JW Library (Settings › Accessibility). Own process:
+             closing the app from the recent apps (Xiaomi kills its process) must not stop it. -->
         <service
             android:name=".JwLibraryRobot"
+            android:process=":robot"
             android:exported="true"
             android:label="@string/jwnotes_robot_label"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
