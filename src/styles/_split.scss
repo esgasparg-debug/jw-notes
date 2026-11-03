@@ -1,0 +1,53 @@
+// Master–detail layout shared by the editor pages: list on the left, details on the right.
+// On narrow screens only one pane shows at a time; `.has-selection` switches to the detail pane.
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(280px, 380px) 1fr;
+  gap: 16px;
+  height: calc(100dvh - var(--header-h) - 120px);
+  min-height: 420px;
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.editor-pane {
+  overflow: auto;
+}
+
+.placeholder {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  height: 100%;
+  padding: 24px;
+  text-align: center;
+
+  .material-symbols-rounded {
+    font-size: 40px;
+  }
+}
+
+@media (max-width: 800px) {
+  .split {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 0;
+  }
+  .list-pane {
+    max-height: none;
+  }
+  .split.has-selection .list-pane,
+  .split:not(.has-selection) .editor-pane {
+    display: none;
+  }
+}

@@ -1,0 +1,54 @@
+<form class="editor" [formGroup]="form" (ngSubmit)="submit()">
+  <header class="head">
+    <button type="button" class="icon-btn back" aria-label="Voltar para a lista" (click)="back.emit()">
+      <span class="material-symbols-rounded">arrow_back</span>
+    </button>
+    <div class="where">
+      @if (note().highlightColor) {
+        <span class="dot" [style.background]="color()" title="Cor da marcação ligada a esta nota"></span>
+      }
+      <span>{{ note().location?.label ?? 'Nota avulsa (sem local)' }}</span>
+      @if (note().location; as loc) {
+        <span class="muted">· {{ loc.publication }}</span>
+      }
+    </div>
+  </header>
+
+  <label class="field">
+    <span class="label">Título</span>
+    <input type="text" formControlName="title" />
+  </label>
+
+  <label class="field grow">
+    <span class="label">Texto</span>
+    <textarea formControlName="content" rows="12"></textarea>
+  </label>
+
+  <div class="field">
+    <span class="label">Etiquetas</span>
+    <div class="chips">
+      @for (t of note().tags; track t.id) {
+        <span class="chip">
+          {{ t.name }}
+          <button type="button" class="chip-x" [attr.aria-label]="'Remover etiqueta ' + t.name" (click)="tagRemoved.emit(t.id)">×</button>
+        </span>
+      }
+      <select #tagSelect class="tag-add" aria-label="Adicionar etiqueta" (change)="onTagPicked(tagSelect)">
+        <option value="">+ Adicionar etiqueta</option>
+        @for (t of availableTags(); track t.id) {
+          <option [value]="t.id">{{ t.name }}</option>
+        }
+        <option value="__new__">Nova etiqueta…</option>
+      </select>
+    </div>
+  </div>
+
+  <p class="dates muted">Criada em {{ note().created | shortDate }} · Alterada em {{ note().lastModified | shortDate }}</p>
+
+  <footer class="actions">
+    <button type="button" class="btn danger" (click)="deleted.emit()"><span class="material-symbols-rounded">delete</span> Excluir</button>
+    <button type="submit" class="btn primary" [disabled]="form.pristine">
+      <span class="material-symbols-rounded">check</span> Aplicar alterações
+    </button>
+  </footer>
+</form>

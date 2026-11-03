@@ -1,0 +1,47 @@
+<div class="split" [class.has-selection]="selected()">
+  <section class="pane list-pane">
+    <div class="filters">
+      <input type="search" placeholder="Buscar em títulos e textos…" [ngModel]="text()" (ngModelChange)="text.set($event)" />
+      <div class="row">
+        <select aria-label="Filtrar por etiqueta" [ngModel]="tag() ?? ''" (ngModelChange)="tag.set(tagValue($event))">
+          <option value="">Todas as etiquetas</option>
+          <option value="none">Sem etiqueta</option>
+          @for (t of allTags(); track t.id) {
+            <option [value]="t.id">{{ t.name }}</option>
+          }
+        </select>
+        <select aria-label="Filtrar por publicação" [ngModel]="publication() ?? ''" (ngModelChange)="publication.set($event || null)">
+          <option value="">Todas as publicações</option>
+          @for (p of publications(); track p.key) {
+            <option [value]="p.key">{{ p.name }}</option>
+          }
+        </select>
+      </div>
+      <div class="row between">
+        <span class="muted">{{ notes().length }} nota(s)</span>
+        <button type="button" class="btn primary" (click)="create()"><span class="material-symbols-rounded">add</span> Nova nota</button>
+      </div>
+    </div>
+    <app-note-list [notes]="notes()" [selectedId]="selectedId()" (selected)="selectedId.set($event)" />
+  </section>
+
+  <section class="pane editor-pane">
+    @if (selected(); as note) {
+      <app-note-editor
+        [note]="note"
+        [allTags]="allTags()"
+        (back)="selectedId.set(null)"
+        (saved)="save(note.id, $event)"
+        (deleted)="remove(note.id)"
+        (tagAdded)="addTag(note.id, $event)"
+        (tagCreateRequested)="createTag(note.id)"
+        (tagRemoved)="removeTag(note.id, $event)"
+      />
+    } @else {
+      <div class="placeholder muted">
+        <span class="material-symbols-rounded">sticky_note_2</span>
+        Selecione uma nota para editar.
+      </div>
+    }
+  </section>
+</div>

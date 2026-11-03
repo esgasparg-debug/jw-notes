@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="jwnotes_robot_label">Editor de Notas: sincronizar sozinho</string>
+    <string name="jwnotes_robot_description">Quando você toca em Sincronizar, o Editor de Notas abre o JW Library e toca por você em Estudo Pessoal › Backup e restauração › Fazer backup, e confirma a restauração quando há uma atualização. Ele só age durante esses passos, iniciados por você; no resto do tempo não lê nem toca em nada.</string>
+</resources>

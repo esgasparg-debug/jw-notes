@@ -1,0 +1,22 @@
+@use 'split';
+
+.filters {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+
+  .row {
+    display: flex;
+    gap: 8px;
+
+    select {
+      flex: 1;
+      min-width: 0;
+    }
+    &.between {
+      justify-content: space-between;
+      align-items: center;
+    }
+  }
+}

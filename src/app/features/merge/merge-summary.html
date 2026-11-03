@@ -1,0 +1,51 @@
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Tipo</th>
+        <th scope="col" class="num">Novos</th>
+        <th scope="col" class="num">Atualizados</th>
+        <th scope="col" class="num">Já existiam</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (r of rows(); track r.key) {
+        <tr>
+          <th scope="row">{{ r.label }}</th>
+          <td class="num" [class.strong]="r.added">{{ r.added }}</td>
+          <td class="num">{{ r.updated }}</td>
+          <td class="num muted">{{ r.identical }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>
+
+@for (w of report().warnings; track w) {
+  <p class="warning"><span class="material-symbols-rounded">warning</span>{{ w }}</p>
+}
+
+@if (report().conflicts.length) {
+  <details class="conflicts">
+    <summary>{{ report().conflicts.length }} conflito(s) resolvido(s) automaticamente</summary>
+    <ul>
+      @for (c of report().conflicts; track $index) {
+        <li>
+          <div class="c-head">
+            <span class="chip">{{ label(c.entity) }}</span>
+            <span>{{ c.description }}</span>
+          </div>
+          <span class="muted resolution">→ {{ resolutionLabels[c.resolution] }}</span>
+          @if (c.target || c.source) {
+            <div class="versions">
+              <div><span class="label">Base</span>{{ c.target }}</div>
+              <div><span class="label">Outro</span>{{ c.source }}</div>
+            </div>
+          }
+        </li>
+      }
+    </ul>
+  </details>
+} @else {
+  <p class="muted">Nenhum conflito encontrado.</p>
+}

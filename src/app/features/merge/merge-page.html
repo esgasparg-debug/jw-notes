@@ -1,0 +1,67 @@
+<header class="intro">
+  <h1>Mesclar dois backups</h1>
+  <p class="muted">
+    Junta notas, comentários, marcações, marcadores, etiquetas e listas de reprodução dos dois arquivos num backup novo. Os arquivos
+    originais não são alterados.
+  </p>
+</header>
+
+<section class="slots">
+  <app-file-slot letter="A" title="Primeiro backup" [file]="a()" (choose)="choose('a')" />
+  <button type="button" class="icon-btn swap" aria-label="Trocar A e B" title="Trocar A e B" [disabled]="!a() && !b()" (click)="swap()">
+    <span class="material-symbols-rounded">swap_vert</span>
+  </button>
+  <app-file-slot letter="B" title="Segundo backup" [file]="b()" (choose)="choose('b')" />
+</section>
+
+<section class="options card-panel">
+  <fieldset>
+    <legend class="label">Quando o mesmo item estiver diferente nos dois</legend>
+    <label class="radio">
+      <input type="radio" name="prefer" value="newest" [ngModel]="prefer()" (ngModelChange)="prefer.set($event)" />
+      <span><strong>Manter o mais recente</strong> <span class="muted">(recomendado: notas usam a própria data de alteração)</span></span>
+    </label>
+    <label class="radio">
+      <input type="radio" name="prefer" value="a" [ngModel]="prefer()" (ngModelChange)="prefer.set($event)" />
+      <span>Manter sempre o do arquivo A</span>
+    </label>
+    <label class="radio">
+      <input type="radio" name="prefer" value="b" [ngModel]="prefer()" (ngModelChange)="prefer.set($event)" />
+      <span>Manter sempre o do arquivo B</span>
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend class="label">O que mesclar</legend>
+    <div class="checks">
+      @for (e of entities; track e[0]) {
+        <label class="check">
+          <input type="checkbox" [ngModel]="include()[e[0]]" (ngModelChange)="toggle(e[0], $event)" />
+          <span>{{ e[1] }}</span>
+        </label>
+      }
+    </div>
+  </fieldset>
+</section>
+
+<div class="go">
+  <button type="button" class="btn primary big" [disabled]="!a() || !b()" (click)="merge()">
+    <span class="material-symbols-rounded">merge</span> Mesclar
+  </button>
+</div>
+
+@if (report(); as r) {
+  <section class="result card-panel">
+    <h2><span class="material-symbols-rounded ok">check_circle</span> Mesclagem concluída</h2>
+    <p class="muted">O resultado ainda não foi salvo. Por padrão, ele é salvo na mesma pasta do arquivo A.</p>
+    <app-merge-summary [report]="r" />
+    <div class="result-actions">
+      <button type="button" class="btn" (click)="review()">
+        <span class="material-symbols-rounded">edit_note</span> Revisar no editor
+      </button>
+      <button type="button" class="btn primary" (click)="save()">
+        <span class="material-symbols-rounded">save</span> Salvar backup mesclado
+      </button>
+    </div>
+  </section>
+}

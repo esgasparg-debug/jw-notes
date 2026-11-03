@@ -1,0 +1,6 @@
+            <!-- jw-notes: JW Library › Criar backup › Compartilhar › Editor de Notas -->
+            <intent-filter android:label="Sincronizar backup">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/*" />
+            </intent-filter>

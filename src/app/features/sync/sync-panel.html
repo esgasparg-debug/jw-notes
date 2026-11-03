@@ -1,0 +1,221 @@
+<section class="panel card-panel">
+  <header class="head">
+    <span class="material-symbols-rounded mark" [class.spin]="sync.busy()" aria-hidden="true">sync</span>
+    <div class="title">
+      <h2>Sincronizar aparelhos</h2>
+      <p class="muted">Junta os backups de todos os seus aparelhos num só arquivo no Google Drive.</p>
+    </div>
+    @if (sync.connected()) {
+      <button
+        type="button"
+        class="icon-btn"
+        title="Verificar de novo"
+        aria-label="Verificar de novo"
+        [disabled]="sync.busy()"
+        (click)="sync.refresh()"
+      >
+        <span class="material-symbols-rounded">refresh</span>
+      </button>
+      <a routerLink="/settings" class="icon-btn" title="Configurações" aria-label="Configurações">
+        <span class="material-symbols-rounded">settings</span>
+      </a>
+    }
+  </header>
+
+  @if (!sync.available) {
+    <p class="notice">A sincronização usa o Google Drive, que ainda não foi configurado neste app. {{ sync.unavailableReason }}</p>
+  } @else if (!sync.connected()) {
+    <p>Conecte sua conta do Google uma única vez. O app cria a pasta <strong>jw-notes</strong> no seu Drive e organiza tudo sozinho.</p>
+    <button type="button" class="btn primary big" [disabled]="sync.busy()" (click)="sync.connect()">
+      <span class="material-symbols-rounded">add_to_drive</span> Conectar ao Google Drive
+    </button>
+  } @else {
+    @if (sync.overview(); as ov) {
+      <div class="status">
+        <div class="stat">
+          <span class="label">Backups novos</span>
+          <strong class="big-number">{{ ov.pending.length }}</strong>
+          <span class="muted small">em {{ ov.inbox.path | folderPath }}</span>
+        </div>
+        <div class="stat">
+          <span class="label">Arquivo sincronizado</span>
+          @if (ov.current; as cur) {
+            <strong class="file-name">{{ cur.name }}</strong>
+            <span class="muted small">atualizado em {{ cur.modifiedAt | shortDate }}</span>
+          } @else {
+            <span class="muted">Será criado na primeira sincronização</span>
+          }
+        </div>
+      </div>
+
+      @if (sync.backupRequested()) {
+        <div class="callout">
+          <span class="material-symbols-rounded">upload</span>
+          <div>
+            <strong>
+              @if (firstSender(); as from) {
+                {{ from }} enviou um backup. Envie o deste aparelho.
+              } @else {
+                Há dados novos de outros aparelhos. Envie o backup deste aparelho antes de atualizar.
+              }
+            </strong>
+            <p class="muted small">
+              @if (isAndroid) {
+                O JW Library vai abrir: Configurações › Backup e restauração › Criar backup e, no menu Compartilhar,
+                <strong>Editor de Notas</strong>.
+              } @else {
+                O app lê o JW Library deste computador e envia o backup sozinho.
+              }
+            </p>
+          </div>
+          <button type="button" class="btn primary" [disabled]="sync.busy()" (click)="sync.sendBackup()">Enviar backup</button>
+        </div>
+      }
+      @if (sync.updateReady()) {
+        <div class="callout ready">
+          <span class="material-symbols-rounded">download</span>
+          <div>
+            <strong>Atualização pronta: os backups de todos os aparelhos foram mesclados.</strong>
+            <p class="muted small">
+              @if (isAndroid) {
+                O JW Library vai pedir para restaurar o arquivo sincronizado.
+              } @else {
+                Feche o JW Library deste computador antes de atualizar. Uma cópia dos dados atuais fica guardada.
+              }
+            </p>
+          </div>
+          <button type="button" class="btn primary" [disabled]="sync.busy()" (click)="applyUpdate()">Atualizar o JW Library</button>
+        </div>
+      }
+
+      @if (ov.devices.length || otherPending().length) {
+        <ul class="pending">
+          @for (d of ov.devices; track d.device.id) {
+            <li>
+              <span class="material-symbols-rounded">{{ deviceIcon(d) }}</span>
+              <span class="file-name">
+                {{ d.device.name }}
+                @if (d.me) {
+                  <span class="muted small">(este aparelho)</span>
+                }
+              </span>
+              @if (d.upload; as up) {
+                <span class="small sent">enviou {{ up.modifiedAt | shortDate }}</span>
+              } @else if (ov.pending.length) {
+                <span class="small waiting">aguardando</span>
+              } @else {
+                <span class="muted small">em dia</span>
+              }
+              @if (!d.me) {
+                <button
+                  type="button"
+                  class="icon-btn"
+                  title="Remover aparelho"
+                  aria-label="Remover aparelho"
+                  [disabled]="sync.busy()"
+                  (click)="remove(d)"
+                >
+                  <span class="material-symbols-rounded">close</span>
+                </button>
+              } @else {
+                <span></span>
+              }
+            </li>
+          }
+          @for (p of otherPending(); track p.id) {
+            <li>
+              <span class="material-symbols-rounded">draft</span>
+              <span class="file-name">{{ p.name }}</span>
+              <span class="muted small">{{ p.modifiedAt | shortDate }}</span>
+              <span></span>
+            </li>
+          }
+        </ul>
+      }
+    }
+
+    <button type="button" class="btn primary big sync-btn" [disabled]="sync.busy() || !canSync()" (click)="sync.sync()">
+      <span class="material-symbols-rounded" [class.spin]="sync.phase() === 'syncing'">sync</span>
+      {{ buttonLabel() }}
+    </button>
+  }
+
+  @if (sync.message()) {
+    <p class="progress muted" role="status"><span class="dot-spinner"></span>{{ sync.message() }}</p>
+  }
+  @if (sync.error(); as err) {
+    <p class="error" role="alert">
+      <span class="material-symbols-rounded">error</span>{{ err }}
+      <button type="button" class="link" (click)="sync.refresh()">Tentar de novo</button>
+    </p>
+  }
+
+  @if (sync.outcome(); as out) {
+    <div class="outcome">
+      <h3><span class="material-symbols-rounded ok">check_circle</span> Sincronizado</h3>
+      <p>
+        {{ out.processed.length }} backup(s) mesclado(s) em <strong>{{ out.file.name }}</strong> (pasta <strong>jw-notes › sync</strong>).
+      </p>
+      @if (changes(out.report); as list) {
+        @if (list.length) {
+          <ul class="changes">
+            @for (c of list; track c.label) {
+              <li>
+                <strong>+{{ c.count }}</strong> {{ c.label }}
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="muted">Nenhuma novidade: tudo já estava no arquivo sincronizado.</p>
+        }
+      }
+      @for (s of out.skipped; track s.ref.id) {
+        <p class="warning">
+          <span class="material-symbols-rounded">warning</span>
+          {{ s.ref.name }} não pôde ser lido e ficou na pasta de entrada ({{ s.error }}).
+        </p>
+      }
+      <p class="next muted">
+        Cada aparelho recebe o aviso <strong>Atualização pronta</strong> para atualizar o JW Library. Sem o app, dá para restaurar à mão: JW
+        Library › Configurações › Backup e restauração › <strong>Restaurar backup</strong>, com este arquivo da pasta
+        <strong>jw-notes › sync</strong>.
+      </p>
+      <div class="outcome-actions">
+        <details>
+          <summary>Detalhes da mesclagem</summary>
+          <app-merge-summary [report]="out.report" />
+        </details>
+        <button type="button" class="btn" (click)="openInEditor()">
+          <span class="material-symbols-rounded">edit_note</span> Revisar no editor
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (sync.connected()) {
+    <details class="help">
+      <summary>Como enviar os backups dos aparelhos</summary>
+      <ol>
+        <li>No JW Library: Configurações › Backup e restauração › <strong>Criar backup</strong>.</li>
+        @if (isAndroid) {
+          <li>
+            No menu de compartilhar, escolha <strong>Editor de Notas</strong>: o backup vai para o Drive e a sincronização começa sozinha.
+          </li>
+        } @else {
+          <li>
+            No menu de compartilhar, escolha <strong>Drive</strong> e salve na pasta <strong>{{ sync.inboxPath() | folderPath }}</strong
+            >. No celular com o Editor de Notas instalado, escolha <strong>Editor de Notas</strong>, que envia e sincroniza com um toque.
+          </li>
+        }
+        <li>
+          Os outros aparelhos recebem um aviso para enviar o backup deles. Quando todos enviarem, a mesclagem é feita sozinha (ou toque em
+          <strong>Mesclar agora</strong> para não esperar quem não respondeu).
+        </li>
+        <li>Cada aparelho recebe o aviso <strong>Atualização pronta</strong> e atualiza o JW Library com um toque.</li>
+      </ol>
+      @if (sync.localLibrary()) {
+        <p class="muted small">O JW Library deste computador não precisa de backup manual: o app lê os dados dele a cada sincronização.</p>
+      }
+    </details>
+  }
+</section>

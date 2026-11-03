@@ -1,0 +1,86 @@
+<header class="intro">
+  <a routerLink="/" class="link back"><span class="material-symbols-rounded">arrow_back</span> Início</a>
+  <h1>Configurações</h1>
+  <p class="muted">
+    Ficam no seu Google Drive, em <strong>jw-notes › config</strong>, e valem para todos os aparelhos onde você usar o app.
+  </p>
+</header>
+
+@if (!sync.available) {
+  <p class="card-panel section muted">O Google Drive ainda não foi configurado neste app. {{ sync.unavailableReason }}</p>
+} @else if (!sync.connected()) {
+  <section class="card-panel section">
+    <p>Conecte sua conta do Google para ver e alterar as configurações.</p>
+    <button type="button" class="btn primary" [disabled]="sync.busy()" (click)="sync.connect()">
+      <span class="material-symbols-rounded">add_to_drive</span> Conectar ao Google Drive
+    </button>
+  </section>
+} @else {
+  <section class="card-panel section">
+    <h2>Pasta de entrada dos backups</h2>
+    <p class="muted">Onde os aparelhos salvam os backups do JW Library. A sincronização e o botão “Abrir” começam sempre por aqui.</p>
+
+    <div class="current">
+      <span class="material-symbols-rounded">folder</span>
+      <strong>{{ sync.inboxPath() | folderPath }}</strong>
+      @if (!sync.settings()?.inbox) {
+        <span class="chip">padrão</span>
+      }
+    </div>
+
+    @if (choosing()) {
+      <div class="chooser">
+        <app-cloud-browser [provider]="drive" [startPath]="sync.inboxPath()" (pathChange)="browsedPath.set($event)" />
+        <div class="row">
+          <button type="button" class="btn" (click)="choosing.set(false)">Cancelar</button>
+          <button type="button" class="btn primary" [disabled]="sync.busy() || browsedPath().length < 2" (click)="useBrowsedFolder()">
+            Usar “{{ browsedPath().at(-1)?.name }}”
+          </button>
+        </div>
+      </div>
+    } @else {
+      <div class="row">
+        <button type="button" class="btn" (click)="choosing.set(true)">
+          <span class="material-symbols-rounded">drive_file_move</span> Escolher outra pasta
+        </button>
+        @if (sync.settings()?.inbox) {
+          <button type="button" class="btn" [disabled]="sync.busy()" (click)="useDefault()">Voltar ao padrão</button>
+        }
+      </div>
+    }
+  </section>
+
+  <section class="card-panel section">
+    <h2>Pastas do app no Drive</h2>
+    <ul class="folders">
+      <li>
+        <span class="material-symbols-rounded">inbox</span
+        ><span><strong>backups › pendente</strong> — backups esperando sincronização (pasta de entrada padrão)</span>
+      </li>
+      <li>
+        <span class="material-symbols-rounded">sync</span
+        ><span><strong>sync</strong> — o arquivo mesclado; é este que se restaura nos aparelhos</span>
+      </li>
+      <li>
+        <span class="material-symbols-rounded">inventory_2</span
+        ><span><strong>backups › sincronizados</strong> — backups já mesclados, guardados por segurança</span>
+      </li>
+      <li>
+        <span class="material-symbols-rounded">settings</span><span><strong>config</strong> — estas configurações</span>
+      </li>
+    </ul>
+  </section>
+
+  <section class="card-panel section">
+    <h2>Conta</h2>
+    <div class="row">
+      <button type="button" class="btn" (click)="disconnect()">
+        <span class="material-symbols-rounded">logout</span> Desconectar do Google Drive
+      </button>
+    </div>
+  </section>
+}
+
+@if (sync.error(); as err) {
+  <p class="error" role="alert">{{ err }}</p>
+}

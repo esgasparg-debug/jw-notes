@@ -1,0 +1,65 @@
+<form class="search" (ngSubmit)="search()">
+  <input type="search" name="q" [ngModel]="query()" (ngModelChange)="query.set($event)" placeholder="Buscar backups .jwlibrary em todo o {{ provider().label }}" />
+  <button type="submit" class="btn">
+    <span class="material-symbols-rounded">search</span>
+  </button>
+</form>
+
+@if (searchResults(); as results) {
+  <div class="crumbs">
+    <button type="button" class="link" (click)="clearSearch()">
+      <span class="material-symbols-rounded">arrow_back</span> Voltar para as pastas
+    </button>
+    <span class="muted">{{ results.length }} resultado(s)</span>
+  </div>
+} @else {
+  <nav class="crumbs" aria-label="Pasta atual">
+    @for (f of path(); track f.id; let i = $index, last = $last) {
+      <button type="button" class="link" [disabled]="last" (click)="up(i)">{{ f.name }}</button>
+      @if (!last) {
+        <span class="sep">/</span>
+      }
+    }
+  </nav>
+}
+
+@if (error()) {
+  <p class="error">{{ error() }}</p>
+}
+
+<ul class="entries" [class.loading]="loading()">
+  @if (searchResults(); as results) {
+    @for (f of results; track f.id) {
+      <li>
+        <button type="button" class="entry" [class.selected]="f.id === selectedFileId()" (click)="fileChosen.emit(f)">
+          <span class="material-symbols-rounded">description</span>
+          <span class="name">{{ f.name }}</span>
+          <span class="meta">{{ f.modifiedAt | shortDate }} · {{ f.size | fileSize }}</span>
+        </button>
+      </li>
+    } @empty {
+      <li class="muted empty">Nenhum backup encontrado.</li>
+    }
+  } @else {
+    @for (folder of folders(); track folder.id) {
+      <li>
+        <button type="button" class="entry" (click)="open(folder)">
+          <span class="material-symbols-rounded">folder</span>
+          <span class="name">{{ folder.name }}</span>
+        </button>
+      </li>
+    }
+    @for (f of files(); track f.id) {
+      <li>
+        <button type="button" class="entry" [class.selected]="f.id === selectedFileId()" (click)="fileChosen.emit(f)">
+          <span class="material-symbols-rounded">description</span>
+          <span class="name">{{ f.name }}</span>
+          <span class="meta">{{ f.modifiedAt | shortDate }} · {{ f.size | fileSize }}</span>
+        </button>
+      </li>
+    }
+    @if (!loading() && !folders().length && !files().length) {
+      <li class="muted empty">Pasta vazia (só pastas e arquivos .jwlibrary aparecem aqui).</li>
+    }
+  }
+</ul>

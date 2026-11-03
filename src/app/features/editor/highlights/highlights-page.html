@@ -1,0 +1,65 @@
+<div class="toolbar">
+  <div class="swatches" role="radiogroup" aria-label="Filtrar por cor">
+    <button type="button" class="swatch all" [class.on]="color() === null" (click)="color.set(null)">Todas</button>
+    @for (c of colors; track c.index) {
+      <button
+        type="button"
+        class="swatch"
+        role="radio"
+        [attr.aria-checked]="color() === c.index"
+        [attr.aria-label]="c.name"
+        [class.on]="color() === c.index"
+        [style.background]="c.css"
+        (click)="color.set(c.index)"
+      ></button>
+    }
+  </div>
+  <select aria-label="Filtrar por publicação" [ngModel]="publication() ?? ''" (ngModelChange)="publication.set($event || null)">
+    <option value="">Todas as publicações</option>
+    @for (p of publications(); track p.key) {
+      <option [value]="p.key">{{ p.name }}</option>
+    }
+  </select>
+  <span class="muted">{{ total() }} marcação(ões)</span>
+</div>
+
+<p class="hint muted">O backup guarda a posição das marcações, não o texto marcado. Aqui você pode mudar a cor ou excluir marcações.</p>
+
+@for (g of groups(); track g.id) {
+  <section class="group card-panel">
+    <header>
+      <h3>{{ g.label }}</h3>
+      <span class="muted">{{ g.publication }}</span>
+    </header>
+    <ul>
+      @for (h of g.items; track h.id) {
+        <li>
+          <span class="bar" [style.background]="css(h.colorIndex)"></span>
+          <span class="desc">
+            {{ rangeLabel(h) }}
+            @if (h.noteCount) {
+              <span class="chip"><span class="material-symbols-rounded">sticky_note_2</span>{{ h.noteCount }}</span>
+            }
+          </span>
+          <span class="mini-swatches">
+            @for (c of colors; track c.index) {
+              <button
+                type="button"
+                class="mini"
+                [class.on]="h.colorIndex === c.index"
+                [style.background]="c.css"
+                [attr.aria-label]="'Mudar para ' + c.name"
+                (click)="setColor(h, c.index)"
+              ></button>
+            }
+          </span>
+          <button type="button" class="icon-btn" aria-label="Excluir marcação" (click)="remove(h)">
+            <span class="material-symbols-rounded">delete</span>
+          </button>
+        </li>
+      }
+    </ul>
+  </section>
+} @empty {
+  <p class="empty muted">Nenhuma marcação encontrada.</p>
+}

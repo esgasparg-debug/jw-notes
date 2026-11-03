@@ -1,0 +1,95 @@
+:host {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+th,
+td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+thead th {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+tbody th {
+  font-weight: 400;
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.strong {
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.warning {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  color: var(--danger);
+}
+
+.conflicts {
+  summary {
+    cursor: pointer;
+    font-weight: 500;
+  }
+  ul {
+    display: grid;
+    gap: 8px;
+    max-height: 360px;
+    margin: 8px 0 0;
+    padding: 0;
+    overflow: auto;
+    list-style: none;
+  }
+  li {
+    display: grid;
+    gap: 4px;
+    padding: 8px 10px;
+    border-radius: var(--radius);
+    background: var(--surface-2);
+  }
+}
+
+.c-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.resolution {
+  font-size: 0.85rem;
+}
+
+.versions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  font-size: 0.85rem;
+
+  div {
+    display: grid;
+    gap: 2px;
+    overflow-wrap: anywhere;
+  }
+}

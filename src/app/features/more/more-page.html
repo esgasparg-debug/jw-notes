@@ -1,0 +1,26 @@
+<app-sync-panel />
+
+<section class="more" appFileDrop (fileDropped)="dropped($event)">
+  <h2>Arquivos</h2>
+  <div class="cards">
+    @if (store.hasDocument()) {
+      <a class="card" routerLink="/editor">
+        <span class="material-symbols-rounded icon">resume</span>
+        <strong>Continuar editando</strong>
+        <span class="muted">{{ store.document()?.name }}</span>
+      </a>
+    }
+
+    <button type="button" class="card" (click)="actions.open()">
+      <span class="material-symbols-rounded icon">edit_note</span>
+      <strong>Abrir e editar um backup</strong>
+      <span class="muted">Notas, comentários, marcações e etiquetas. Você também pode arrastar um arquivo para cá.</span>
+    </button>
+
+    <a class="card" routerLink="/merge">
+      <span class="material-symbols-rounded icon">merge</span>
+      <strong>Mesclar manualmente</strong>
+      <span class="muted">Escolha dois arquivos quaisquer e decida como resolver os conflitos.</span>
+    </a>
+  </div>
+</section>

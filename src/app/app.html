@@ -1,0 +1,66 @@
+<header class="topbar">
+  <div class="topbar-inner">
+    <a routerLink="/" class="brand" aria-label="Início">
+      <span class="brand-mark material-symbols-rounded" aria-hidden="true">auto_stories</span>
+      <span class="brand-text">
+        <span class="brand-name">Editor de Notas</span>
+        <span class="brand-sub">para backups do JW Library</span>
+      </span>
+    </a>
+
+    @if (isHome()) {
+      <a routerLink="/mais" class="icon-btn more" title="Mais opções" aria-label="Mais opções">
+        <span class="material-symbols-rounded">more_vert</span>
+      </a>
+    } @else {
+      <nav class="nav" aria-label="Principal">
+        @if (store.hasDocument()) {
+          <a routerLink="/editor" routerLinkActive="on">Editor</a>
+        }
+        <a routerLink="/merge" routerLinkActive="on">Mesclar</a>
+      </nav>
+
+      <div class="doc">
+        @if (store.document(); as doc) {
+          <span class="doc-name" [title]="doc.name">
+            @if (store.dirty()) {
+              <span class="dirty" title="Alterações não salvas"></span>
+            }
+            {{ doc.name }}
+          </span>
+          <button type="button" class="btn" (click)="actions.save()">
+            <span class="material-symbols-rounded">save</span>
+            <span class="hide-sm">Salvar</span>
+          </button>
+        }
+        <button type="button" class="icon-btn" title="Abrir backup" aria-label="Abrir backup" (click)="actions.open()">
+          <span class="material-symbols-rounded">folder_open</span>
+        </button>
+        <a routerLink="/settings" class="icon-btn" title="Configurações" aria-label="Configurações">
+          <span class="material-symbols-rounded">settings</span>
+        </a>
+        <button type="button" class="btn primary" [disabled]="sync.busy()" (click)="syncNow()">
+          <span class="material-symbols-rounded" [class.spin]="sync.phase() === 'syncing'">sync</span>
+          <span class="hide-sm">Sincronizar</span>
+        </button>
+      </div>
+    }
+  </div>
+</header>
+
+<main class="content">
+  <router-outlet />
+</main>
+
+@if (!isHome()) {
+  <footer class="footer muted">
+    Aplicativo independente, sem vínculo oficial com o jw.org ou com o JW Library. Faça sempre uma cópia do backup original antes de
+    restaurar.
+  </footer>
+}
+
+<app-open-file-dialog />
+<app-save-file-dialog />
+<app-confirm-host />
+<app-toast-host />
+<app-busy-overlay />

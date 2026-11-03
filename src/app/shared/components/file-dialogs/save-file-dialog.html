@@ -1,0 +1,34 @@
+<app-modal [heading]="request()?.title ?? ''" [open]="!!request()" [wide]="provider().browsable" (closed)="cancel()">
+  <app-provider-tabs [providers]="storage.providers" [(selected)]="providerId" />
+
+  <label class="field">
+    <span class="label">Nome do arquivo</span>
+    <input type="text" [ngModel]="name()" (ngModelChange)="name.set($event)" [disabled]="overwrite()" />
+  </label>
+
+  @if (provider().browsable) {
+    <app-provider-auth [provider]="provider()">
+      <span class="label">Pasta de destino</span>
+      <app-cloud-browser [provider]="provider()" [startPath]="startPath()" (folderChange)="folder.set($event)" />
+      @if (folder(); as f) {
+        <p class="dest muted">Será salvo em <strong>{{ f.name }}</strong>.</p>
+      }
+    </app-provider-auth>
+  } @else {
+    <p class="muted">{{ localHint() }}</p>
+  }
+
+  @if (canOverwrite()) {
+    <label class="check">
+      <input type="checkbox" [ngModel]="overwrite()" (ngModelChange)="overwrite.set($event)" />
+      <span>Substituir o arquivo original ({{ request()?.source?.name }})</span>
+    </label>
+  }
+
+  <ng-container modal-actions>
+    <button type="button" class="btn" (click)="cancel()">Cancelar</button>
+    <button type="button" class="btn primary" [disabled]="provider().browsable && !provider().signedIn()" (click)="confirm()">
+      <span class="material-symbols-rounded">save</span> Salvar
+    </button>
+  </ng-container>
+</app-modal>

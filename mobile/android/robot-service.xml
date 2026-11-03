@@ -1,0 +1,11 @@
+        <!-- jw-notes: robot that taps through JW Library (Settings › Accessibility) -->
+        <service
+            android:name=".JwLibraryRobot"
+            android:exported="true"
+            android:label="@string/jwnotes_robot_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/jwnotes_robot" />
+        </service>
