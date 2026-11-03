@@ -67,6 +67,10 @@ export class SyncService {
   private readonly _localLibrary = signal<string | null>(null);
   private readonly _lastUpload = signal(readPreference<string>(LAST_UPLOAD_KEY));
   private readonly _applied = signal(readPreference<string>(APPLIED_KEY));
+  /** When this device last sent its backup (Drive time of the upload). */
+  readonly lastUpload = this._lastUpload.asReadonly();
+  /** Android: the backup the robot is making merges at once instead of waiting for the others. */
+  private mergeOnReceive = false;
   /** The task `run()` is executing, so callers that cannot be dropped (shared files) can wait for it. */
   private running: Promise<unknown> = Promise.resolve();
 
@@ -175,11 +179,13 @@ export class SyncService {
    * Sends this device's backup for the current round. Desktop reads JW Library itself. Android
    * cannot: the robot (JwLibraryRobot) taps Fazer backup › Sincronizar backup in JW Library, or,
    * when it is off, JW Library just opens for the user to do it. Either way the file comes back
-   * through syncReceived().
+   * through syncReceived(). `mergeNow` merges it right away instead of waiting for the other
+   * devices: used to refresh an old backup just before updating JW Library.
    */
-  async sendBackup(): Promise<SyncOutcome | null> {
+  async sendBackup(mergeNow = false): Promise<SyncOutcome | null> {
     if (this.busy()) return null;
     if (this.identity.platform === 'android') {
+      this.mergeOnReceive = mergeNow;
       await this.run('loading', 'Fazendo o backup no JW Library…', async () => {
         const { JwLibraryApp } = await import('../platform/android-plugins');
         if ((await JwLibraryApp.robotStatus()).enabled) await JwLibraryApp.backupAutomatically();
@@ -187,14 +193,16 @@ export class SyncService {
       });
       return null;
     }
-    return this.syncWith('everyone-sent', (overview) => this.uploadLocalBackup(overview, true));
+    return this.syncWith(mergeNow ? 'always' : 'everyone-sent', (overview) => this.uploadLocalBackup(overview, true));
   }
 
   /** A backup handed over by JW Library (Android "Compartilhar"): sent to the inbox for this round. */
   async syncReceived(name: string, bytes: Bytes): Promise<SyncOutcome | null> {
     await this.running.catch(() => undefined);
     const fileName = isJwLibraryName(name) ? name : backupFileName(new Date(), await this.identity.deviceName());
-    return this.syncWith('everyone-sent', async (overview) => {
+    const when: MergeWhen = this.mergeOnReceive ? 'always' : 'everyone-sent';
+    this.mergeOnReceive = false;
+    return this.syncWith(when, async (overview) => {
       // Anything shared to the app lands here; only real backups may reach the inbox.
       await readArchive(bytes);
       this._message.set(`Enviando ${fileName}…`);

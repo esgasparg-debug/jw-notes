@@ -11,7 +11,7 @@ const POLL_MS = 60_000;
  * - Android: Firebase push notifications (sent by the relay in functions/), even with the app closed;
  * - computer and browser: a check of the Drive every minute while the app is open, plus a
  *   system notification on desktop.
- * Tapping a notification opens the sync panel, where the device sends its backup or updates.
+ * Tapping a notification opens the app, which then sends its backup or updates by itself (SyncFlow.auto).
  */
 @Injectable({ providedIn: 'root' })
 export class SyncAlerts {
@@ -25,11 +25,23 @@ export class SyncAlerts {
   start(): void {
     if (this.started) return;
     this.started = true;
+    // Whatever needs no decision (send when asked, merge, update) happens as soon as the state allows.
+    effect(
+      () => {
+        this.sync.overview();
+        this.sync.busy();
+        this.sync.connected();
+        untracked(() => void this.flow.auto());
+      },
+      { injector: this.injector },
+    );
     if (this.platform === 'android') {
       void this.startPush();
       void this.flow.checkRobot();
       document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') void this.flow.checkRobot();
+        if (document.visibilityState !== 'visible') return;
+        void this.flow.checkRobot();
+        void this.sync.refresh(true);
       });
     } else this.startPolling();
   }

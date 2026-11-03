@@ -250,6 +250,22 @@ describe('sync rounds between devices', () => {
     expect(pc.sync.updateReady()).toBe(true);
   });
 
+  it('refreshing an old backup before an update merges it at once, without opening a round', async () => {
+    const { phone, pc, pcLibrary } = await phoneAndComputer();
+    use(phone);
+    await phone.sync.syncReceived('xiaomi.jwlibrary', await phoneBackup('Xiaomi', '2026-11-03T08:00:00Z', 'do celular'));
+    use(pc);
+    await pc.sync.sendBackup();
+
+    // Notes written since the computer's backup go in first, then the update can follow.
+    pcLibrary.database = await database('2026-11-03T09:00:00Z', 'do PC', 'escrita depois');
+    expect(await pc.sync.sendBackup(true)).not.toBeNull();
+    expect(await syncedTitles()).toEqual(['do PC', 'do celular', 'escrita depois']);
+    expect(pc.sync.waitingFor()).toEqual([]);
+    expect(notifier.sent.at(-1)).toEqual(expect.objectContaining({ event: 'sync-ready', from: 'pc' }));
+    expect(pc.sync.updateReady()).toBe(true);
+  });
+
   it('walks the single Sincronizar button through the round on each device', async () => {
     const { phone, pc } = await phoneAndComputer();
     const browser = device('browser', 'Navegador', 'web');

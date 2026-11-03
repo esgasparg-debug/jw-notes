@@ -72,7 +72,10 @@ export class GoogleDriveApi extends DriveApi {
     // (browsers block popups that open too long after the click).
     if (this.available && !this.native) loadScript(GIS_SRC).catch(() => undefined);
     const saved = readPreference<{ token: string; expiresAt: number }>(SESSION_KEY);
-    if (!this.available || !saved || Date.now() > saved.expiresAt - 60_000) return false;
+    if (!this.available || !saved) return false;
+    // Android: Play Services hands out a new token without asking again, so an expired session
+    // still counts as signed in (ensureToken renews it on first use).
+    if (!this.native && Date.now() > saved.expiresAt - 60_000) return false;
     this.setSession(saved.token, saved.expiresAt);
     return true;
   }

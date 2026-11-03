@@ -4,10 +4,14 @@ import { DialogService } from '../ui/dialog.service';
 import { NotificationService } from '../ui/notification.service';
 import { SyncService } from './sync.service';
 
+/** A backup sent longer ago than this may miss notes made since: it is made again before an update. */
+const FRESH_BACKUP_MS = 15 * 60_000;
+
 /**
  * The one "Sincronizar" button: each press does the next step of the round for this device
  * (see SyncService.nextStep) and chains what can safely follow, so on a computer one press sends,
- * merges and updates JW Library. `status` is the single line shown under the button.
+ * merges and updates JW Library. Steps that need no decision also run without a press (auto()).
+ * `status` is the single line shown under the button.
  */
 @Injectable({ providedIn: 'root' })
 export class SyncFlow {
@@ -17,6 +21,9 @@ export class SyncFlow {
   private readonly platform = inject(PlatformService).platform;
   /** Android: whether the robot that taps through JW Library is on (null until checked). */
   private readonly robot = signal<boolean | null>(null);
+  /** The situation auto() last acted on (or the user did, with the button), so it is not repeated. */
+  private lastAuto = '';
+  private updating = false;
 
   readonly status = computed(() => {
     const sync = this.sync;
@@ -48,9 +55,30 @@ export class SyncFlow {
     }
   });
 
+  /**
+   * Does by itself every step that needs no decision: sending this device's backup when another
+   * device asked for it (Android only with the robot on), merging new backups and putting a
+   * finished merge on JW Library. Called whenever the state changes (app opened or back in front,
+   * notification, background check); each situation is tried once, so a robot run that failed is
+   * not repeated in a loop. Signing in for the first time and "Juntar sem esperar?" stay with the user.
+   */
+  async auto(): Promise<void> {
+    const sync = this.sync;
+    if (!sync.available || sync.busy() || this.updating || !sync.connected()) return;
+    const step = sync.nextStep();
+    if (step !== 'update' && step !== 'merge' && !(step === 'send' && sync.backupRequested())) return;
+    if (this.situation() === this.lastAuto) return;
+    if (step === 'send' && this.platform === 'android') {
+      await this.checkRobot();
+      if (!this.robot()) return;
+    }
+    await this.run();
+  }
+
   async run(): Promise<void> {
     const sync = this.sync;
-    if (sync.busy()) return;
+    if (sync.busy() || this.updating) return;
+    this.lastAuto = this.situation();
     switch (sync.nextStep()) {
       case 'connect':
         await sync.connect();
@@ -60,7 +88,7 @@ export class SyncFlow {
       case 'check':
         return sync.refresh();
       case 'update':
-        return this.update(true);
+        return this.update();
       case 'send':
         if (this.platform === 'electron' && !sync.backupRequested() && (await sync.localUnchanged())) {
           this.notify.info('Tudo sincronizado: nada novo neste computador.');
@@ -69,7 +97,7 @@ export class SyncFlow {
         if (this.platform === 'android' && !(await this.robotReady())) return;
         await sync.sendBackup();
         // Computer: when its backup was the last one, apply the merge right away.
-        if (this.platform !== 'android' && sync.updateReady()) await this.update(false);
+        if (this.platform !== 'android' && sync.updateReady()) await this.update();
         return;
       case 'wait': {
         const names = sync
@@ -82,8 +110,7 @@ export class SyncFlow {
           confirmLabel: 'Juntar agora',
         });
         if (!ok || !(await sync.sync())) return;
-        // This device's backup may be hours old: Android asks before restoring.
-        if (sync.updateReady()) await this.update(true);
+        if (sync.updateReady()) await this.update();
         return;
       }
       case 'merge':
@@ -123,20 +150,52 @@ export class SyncFlow {
 
   /**
    * Puts the merged file on JW Library. On Android it goes through JW Library's restore, which
-   * replaces the device's data, so the user is warned first unless the backup was just sent.
+   * replaces the device's data: when this device's backup is old (notes made since would be
+   * lost), the robot first makes a new one, merged at once, and the update follows when it
+   * arrives (SharedBackupReceiver). Without the robot the user is warned instead.
    */
-  async update(confirmFirst: boolean): Promise<void> {
-    if (confirmFirst && this.platform === 'android') {
-      const ok = await this.dialog.confirm({
-        title: 'Atualizar o JW Library',
-        message:
-          'O JW Library vai pedir para restaurar o backup sincronizado. O que você anotou depois de enviar o backup deste aparelho se perde.',
-        confirmLabel: 'Continuar',
-      });
-      if (!ok) return;
+  async update(): Promise<void> {
+    if (this.updating) return;
+    this.updating = true;
+    try {
+      if (this.platform === 'android' && this.backupIsOld()) {
+        await this.checkRobot();
+        if (this.robot()) {
+          await this.sync.sendBackup(true);
+          return;
+        }
+        const ok = await this.dialog.confirm({
+          title: 'Atualizar o JW Library',
+          message:
+            'O JW Library vai pedir para restaurar o backup sincronizado. O que você anotou depois de enviar o backup deste aparelho se perde.',
+          confirmLabel: 'Continuar',
+        });
+        if (!ok) return;
+      }
+      if (await this.sync.applyUpdate()) {
+        const manual = this.platform === 'android' && !this.robot();
+        this.notify.success(manual ? 'Confirme a restauração no JW Library.' : 'JW Library atualizado.');
+      }
+    } finally {
+      this.updating = false;
     }
-    if (await this.sync.applyUpdate()) {
-      this.notify.success(this.platform === 'android' ? 'Confirme a restauração no JW Library.' : 'JW Library atualizado.');
-    }
+  }
+
+  /** Android: this device's backup is too old to restore over without losing what was noted since. */
+  private backupIsOld(): boolean {
+    const last = this.sync.lastUpload();
+    return !last || Date.now() - Date.parse(last) > FRESH_BACKUP_MS;
+  }
+
+  /** What auto() acts on: the step plus the files and uploads that make it up. */
+  private situation(): string {
+    const ov = this.sync.overview();
+    return [
+      this.sync.nextStep(),
+      ov?.current?.id,
+      ov?.current?.modifiedAt,
+      ov?.pending.map((f) => f.id).join(','),
+      ov?.devices.map((d) => `${d.device.id}:${d.upload?.id ?? ''}`).join(','),
+    ].join('|');
   }
 }

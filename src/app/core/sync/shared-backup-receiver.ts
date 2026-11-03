@@ -33,9 +33,9 @@ export class SharedBackupReceiver {
     }
     void this.router.navigate(['/']);
     const outcome = await this.sync.syncReceived(file.name ?? '', fromBase64(file.data));
-    // This backup was the last one: hand the merge to JW Library at once. Safe without asking,
-    // since the device's data was just backed up.
-    if (outcome && this.sync.updateReady()) await this.flow.update(false);
+    // This backup was the last one: hand the merge to JW Library at once, safe since the
+    // device's data was just backed up.
+    if (outcome && this.sync.updateReady()) await this.flow.update();
     else if (outcome) this.notify.success('Sincronizado.');
     else if (!this.sync.error()) {
       const waiting = this.sync.waitingFor().map((d) => d.device.name);
